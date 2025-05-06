@@ -1,0 +1,88 @@
+clc;
+clear;
+close all;
+
+% Load and display original image
+image = imread('deer.jpg');
+figure, imshow(image), title('Original Image');
+
+% Enhance contrast
+if size(image, 3) == 3
+    image = im2double(image);
+    adjustedImage(:, :, 1) = imadjust(image(:, :, 1));
+    adjustedImage(:, :, 2) = imadjust(image(:, :, 2));
+    adjustedImage(:, :, 3) = imadjust(image(:, :, 3));
+else
+    image = im2double(image);
+    adjustedImage = imadjust(image);
+end
+
+figure, imshow(adjustedImage), title('Contrast Enhanced Image');
+
+% Show original and enhanced side-by-side
+figure, imshowpair(im2double(imread('deer.jpg')), adjustedImage, 'montage');
+title('Original vs Contrast Enhanced');
+
+% Convert to grayscale
+grayImage = rgb2gray(im2double(imread('deer.jpg')));
+figure, imshow(grayImage), title('Grayscale Image');
+
+% Downsample and filter
+downsampled = grayImage(1:2:end, 1:2:end);
+h = fspecial('gaussian', [3 3], 0.5);
+filtered = imfilter(downsampled, h, 'replicate');
+upsampled = imresize(filtered, 2, 'bicubic');
+
+figure;
+subplot(1, 2, 1), imshow(downsampled), title('Downsampled Image');
+subplot(1, 2, 2), imshow(upsampled), title('Upsampled Image');
+
+% Difference image
+difference = imabsdiff(grayImage, upsampled);
+figure, imshow(difference, []);
+title('Image Difference');
+
+% Convert to binary
+binaryImage = imbinarize(rgb2gray(image));
+figure, imshow(binaryImage), title('Binary Image');
+
+% Quantization
+quantLevels = [4, 8, 16, 32];
+figure;
+for i = 1:length(quantLevels)
+    level = quantLevels(i);
+    quantized = round(grayImage * (level - 1)) / (level - 1);
+    quantized = uint8(quantized * 255);
+    subplot(1, 4, i);
+    imshow(quantized, []);
+    title(['Quantization: ', num2str(level)]);
+end
+
+% Convolution operations
+kernel = [1, -1];
+horizontal = customConvolution(double(grayImage), kernel);
+vertical = customConvolution(double(grayImage), kernel');
+
+figure;
+subplot(1, 2, 1);
+imshow(horizontal, []);
+title('Horizontal Convolution');
+subplot(1, 2, 2);
+imshow(vertical, []);
+title('Vertical Convolution');
+
+function output = customConvolution(image, kernel)
+    [rows, cols] = size(image);
+    [kRows, kCols] = size(kernel);
+    pad1 = floor(kRows / 2);
+    pad2 = floor(kCols / 2);
+    paddedImage = padarray(image, [pad1, pad2]);
+    output = zeros(rows, cols);
+
+    for i = 1:rows
+        for j = 1:cols
+            region = paddedImage(i:i+kRows-1, j:j+kCols-1);
+            output(i, j) = sum(sum(region .* kernel));
+        end
+    end
+end
